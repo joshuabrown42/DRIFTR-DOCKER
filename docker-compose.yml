@@ -428,7 +428,7 @@ services:
   auth:
     image: nuwcdivnpt/stig-manager-auth
     ports:
-      - "8080:8080"
+      - "8008:8080"
   stigmandb:
     image: mysql:8.0
     ports:
