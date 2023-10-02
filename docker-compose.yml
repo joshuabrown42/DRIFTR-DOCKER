@@ -279,7 +279,6 @@ services:
       - /var/log:/var/log:ro
       - /var/log/auditbeat:/var/log/auditbeat:ro
       - ./dropfolder:/dropfolder:ro
-    command: /bin/sh -c "n8n start"
 
   cortex:
     image: thehiveproject/cortex:3.1-withdeps
