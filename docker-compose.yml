@@ -257,7 +257,7 @@ services:
       retries: 10
 
   n8n:
-    image: n8nio/n8n
+    image: docker.n8n.io/n8nio/n8n
     restart: always
     networks:
       elk:
@@ -269,16 +269,15 @@ services:
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=n8nuser
-      - N8N_BASIC_AUTH_PASSWORD=password
     ports:
       - 5678:5678
+    links:
+      - postgres
     volumes:
       - ./vol/n8n_storage:/home/node/.n8n
-      - /var/log:/var/log:ro
-      - /var/log/auditbeat:/var/log/auditbeat:ro
-      - ./dropfolder:/dropfolder:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   cortex:
     image: thehiveproject/cortex:3.1-withdeps
