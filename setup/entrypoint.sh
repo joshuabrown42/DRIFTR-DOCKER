@@ -127,7 +127,8 @@ for user in "${!users_passwords[@]}"; do
 
 		sublog 'User does not exist, creating'
 		create_user "$user" "${users_passwords[$user]}" "${users_roles[$user]}"
-                curl -X PUT "http://localhost:9200/cortext_6"
+                curl -X PUT "http://localhost:9200/cortex_6"
+                curl -X PUT "http://localhost:9200/thehive_global"
 	fi
 done
 

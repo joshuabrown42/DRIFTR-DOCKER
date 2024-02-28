@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin python3
 
 from elasticsearch import Elasticsearch
 from cortexutils.analyzer import Analyzer

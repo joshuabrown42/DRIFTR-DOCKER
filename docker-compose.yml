@@ -48,7 +48,7 @@ services:
       - 9300:9300
     environment:
       node.name: elasticsearch
-      script.allowed_types: inline
+      script.allowed_types: inline,stored
       ES_JAVA_OPTS: -Xms512m -Xmx6g
       # Bootstrap password.
       # Used to initialize the keystore during the initial startup of
@@ -257,7 +257,7 @@ services:
       retries: 10
 
   n8n:
-    image: n8nio/n8n
+    image: docker.n8n.io/n8nio/n8n
     restart: always
     networks:
       elk:
@@ -269,20 +269,18 @@ services:
       - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=n8nuser
-      - N8N_BASIC_AUTH_PASSWORD=password
     ports:
       - 5678:5678
+    links:
+      - postgres
     volumes:
       - ./vol/n8n_storage:/home/node/.n8n
-      - /var/log:/var/log:ro
-      - /var/log/auditbeat:/var/log/auditbeat:ro
-      - ./dropfolder:/dropfolder:ro
-    command: /bin/sh -c "n8n start"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   cortex:
-    image: thehiveproject/cortex:3.1.7-withdeps
+    image: thehiveproject/cortex:3.1-withdeps
     restart: unless-stopped
     container_name: cortex
     env_file: .env
@@ -306,7 +304,7 @@ services:
        ipv4_address: 172.10.50.63
 
   thehive:
-    image: strangebee/thehive:latest
+    image: strangebee/thehive:5.1.0
     restart: unless-stopped
     container_name: thehive
     networks:
