@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}404 - Not Found{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <h1>404 - Not Found</h1>
+
+    <p>
+        {% if reason_for_404 is defined %}
+            <strong>Reason for 404:</strong> {{ reason_for_404 }}<br>
+        {% endif %}
+
+        You should probably go <a href="/">Home</a>... or, you can edit the URL if it was entered incorrectly
+    </p>
+</div>
+
+{% endblock %}

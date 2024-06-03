@@ -1,0 +1,280 @@
+{% macro cart() %}
+<div
+    id="shoppingCart"
+    x-data="offcanvasCart"
+    x-bind="binds"
+    class="offcanvas offcanvas-end"
+    tabindex="-1"
+    aria-labelledby="shoppingCartLabel"
+>
+    {# Header #}
+    <div class="offcanvas-header py-2 px-4">
+        <h2 id="shoppingCartLabel" class="offcanvas-title fs-4">CTI Shopping Cart</h2>
+        <button x-ref="closeCart" type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close Cart Panel"></button>
+    </div>
+
+    {# Body #}
+    <div class="offcanvas-body p-2">
+
+        {# Name + Version #}
+        <div class="vstack gap-1 mb-1">
+
+            {# Version #}
+            <span class="d-block w-100">
+                <strong>Version</strong>: Enterprise <span x-text="version"></span>
+            </span>
+
+            {# Show Name #}
+            <template x-if="!inTitleEditor">
+                <div class="vstack gap-1">
+
+                    {# Name #}
+                    <span class="d-block w-100">
+                        <strong>Name</strong>: <span x-text="title"></span>
+                    </span>
+
+                    {# Begin Editing #}
+                    <div>
+                        <button
+                            id="cartEditNameButton"
+                            type="button"
+                            class="btn btn-light btn-border-dark btn-sm"
+                            @click="editTitleBegin"
+                        >
+                            <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+                            Edit Name
+                        </button>
+                    </div>
+
+                </div>
+            </template>
+
+            {# Edit Name #}
+            <template x-if="inTitleEditor">
+                <div class="vstack gap-1">
+
+                    {# New Name Input #}
+                    <span class="d-block w-100">
+                        <label for="cartEditNameInput"><strong>Name</strong></label>:
+                        <input
+                            id="cartEditNameInput"
+                            type="text"
+                            class="form-control"
+                            :class="newTitleValid ? 'is-valid' : 'is-invalid'"
+                            placeholder="My CTI Report"
+                            x-model="newTitle"
+                        >
+                        <div
+                            :class="newTitleValid ? 'valid-feedback' : 'invalid-feedback'"
+                            x-text="newTitleValid ? 'Looks good!' : 'Name must be different and not just whitespace.'"
+                        ></div>
+                    </span>
+
+                    <div class="hstack gap-1">
+
+                        {# Save Changes #}
+                        <button
+                            type="button"
+                            class="btn btn-success btn-sm"
+                            @click="editTitleSave"
+                            :disabled="!newTitleValid"
+                        >
+                            <i class="bi bi-check" aria-hidden="true"></i>
+                            Save Edit
+                        </button>
+
+                        {# Cancel Changes #}
+                        <button
+                            type="button"
+                            class="btn btn-dark btn-sm"
+                            @click="editTitleCancel"
+                        >
+                            <i class="bi bi-x" aria-hidden="true"></i>
+                            Cancel Edit
+                        </button>
+
+                    </div>
+                </div>
+            </template>
+
+        </div>
+
+        {# Control Buttons #}
+        <div class="vstack gap-1 mb-2">
+            <div class="hstack gap-1 w-100 align-items-stretch">
+
+                {# Save Cart #}
+                <button
+                    type="button"
+                    class="btn btn-light btn-border-dark btn-sm w-50"
+                    @click="saveToJson"
+                >
+                    <i class="bi bi-file-earmark-arrow-down-fill" aria-hidden="true"></i>
+                    Save to .json File
+                </button>
+
+                {# Load Cart - Button #}
+                <button
+                    type="button"
+                    class="btn btn-light btn-border-dark btn-sm w-50"
+                    @click="loadFromJson"
+                >
+                    <i class="bi bi-file-earmark-arrow-up-fill" aria-hidden="true"></i>
+                    Load from .json File
+                </button>
+
+                {# Load Cart - Hidden File Input #}
+                <input
+                    aria-label="Load from .json File"
+                    type="file"
+                    id="cartFile"
+                    accept="application/JSON"
+                    @change="loadFromJsonFileChanged($el)"
+                    class="d-none"
+                >
+
+            </div>
+            <div class="hstack gap-1 w-100 align-items-stretch">
+
+                {# Export Word Doc #}
+                <button
+                    type="button"
+                    class="btn btn-light btn-border-dark btn-sm w-50"
+                    @click="exportToWordDoc"
+                >
+                    <i class="bi bi-file-earmark-word-fill" aria-hidden="true"></i>
+                    Export to Docx Table
+                </button>
+
+                {# Export Navigator Layer #}
+                <button
+                    type="button"
+                    class="btn btn-light btn-border-dark btn-sm w-50"
+                    @click="exportToNavLayer"
+                >
+                    <i class="bi bi-map-fill" aria-hidden="true"></i>
+                    Export to ATT&amp;CK Navigator Layer
+                </button>
+
+            </div>
+            <div class="hstack gap-1 w-100 align-items-stretch">
+
+                {# Cart-Wide Suggestions #}
+                <a
+                    class="btn btn-light btn-border-dark btn-sm w-50 underline-hover"
+                    :href="resolveURL(`/suggestions/${version}`)"
+                >
+                    <i class="bi bi-lightbulb-fill" aria-hidden="true"></i>
+                    View Suggested Techniques
+                </a>
+
+                {# Close Cart #}
+                <button
+                    id="closeCartBeginButton"
+                    type="button"
+                    class="btn btn-danger btn-border-dark btn-sm w-50"
+                    @click="closeCartBegin"
+                    :disabled="inCloseConfirm"
+                >
+                    <i class="bi bi-trash-fill" aria-hidden="true"></i>
+                    Empty Cart
+                </button>
+
+            </div>
+
+            {# Confirm / Cancel Close Cart #}
+            <template x-if="inCloseConfirm">
+                <div class="hstack gap-1 w-100 align-items-stretch">
+
+                    <div class="w-50"></div>
+
+                    {# Confirm Close Cart #}
+                    <button
+                        type="button"
+                        class="btn btn-danger btn-border-dark btn-sm w-25"
+                        @click="closeCartConfirm"
+                        aria-label="Confirm Emptying Cart"
+                    >
+                        <i class="bi bi-trash-fill" aria-hidden="true"></i>
+                        Confirm
+                    </button>
+
+                    {# Cancel Close Cart #}
+                    <button
+                        id="closeCartCancelButton"
+                        type="button"
+                        class="btn btn-dark btn-border-dark btn-sm w-25"
+                        @click="closeCartCancel"
+                        aria-label="Cancel Emptying Cart. Shift tab to access Confirm."
+                    >
+                        <i class="bi bi-x" aria-hidden="true"></i>
+                        Cancel
+                    </button>
+
+                </div>
+            </template>
+        </div>
+
+        {# Cart Entries #}
+        <div class="h-100">
+            <h3 class="text-center fs-4">
+                Cart Entries
+                <span class="badge bg-secondary" x-text="entries.length"></span>
+            </h3>
+
+            <template x-for="entry in entries" :key="entry.appId">
+
+                {# Entry #}
+                <div x-id="['cart-entry']" class="cart-entry mb-2">
+
+                    {# Header #}
+                    <h4 :id="$id('cart-entry')" class="fs-6 text-break">
+                        <span class="d-block" x-text="`${entry.tacticName} [${entry.tactic}]`"></span>
+                        <span class="d-block">
+                            <strong x-text="`${entry.name} [${entry.index}]`"></strong>
+                        </span>
+                    </h4>
+
+                    <div class="vstack">
+
+                        {# Success Page + Delete #}
+                        <div class="hstack w-100 mb-2 justify-content-between">
+                            <div>
+                                <a
+                                    :href="resolveURL(`/question/${version}/${entry.tactic}/${entry.index.replaceAll('.', '/')}`)"
+                                    :aria-labelledby="$id('cart-entry')"
+                                    class="link-strong-blue"
+                                >App Success Page</a>
+                            </div>
+
+                            <button
+                                type="button"
+                                class="btn btn-danger btn-border-dark btn-sm"
+                                aria-label="Delete cart entry"
+                                @click="entries = entries.filter((e) => (e.appId !== entry.appId))"
+                            >
+                                <i class="bi bi-trash-fill" aria-hidden="true"></i>
+                                Delete
+                            </button>
+                        </div>
+
+                        {# Mapping Rationale #}
+                        <div x-id="['cart-entry-notes']" class="form-floating">
+                            <textarea
+                                class="w-100 form-control"
+                                :id="$id('cart-entry-notes')"
+                                x-model.debounce="entry.notes"
+                                placeholder="Mapping Rationale"
+                            ></textarea>
+                            <label class="d-block w-100" :for="$id('cart-entry-notes')">Mapping Rationale</label>
+                        </div>
+                    </div>
+
+                </div>
+
+            </template>
+        </div>
+
+    </div>
+</div>
+{% endmacro %}

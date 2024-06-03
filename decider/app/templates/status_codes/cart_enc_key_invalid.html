@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}Cart Encryption Key Invalid{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <h1>Cart Encryption Key Invalid</h1>
+
+    <p>
+        <strong>Danger:</strong> Contact your Decider sysadmin now!<br><br>
+        The key used to encrypt DB-saved carts has changed...<br>
+        <em>while there are still carts encrypted under the old key.</em><br><br>
+        <strong>Loss of carts may occur!</strong>
+    </p>
+</div>
+
+{% endblock %}

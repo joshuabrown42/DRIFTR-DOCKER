@@ -1,0 +1,28 @@
+site_name: DRIFTR Docs
+nav:
+  - Home: index.md
+  - About: about.md
+  - Docker Containers:
+      - Credentials: credentials.md
+      - Overview: containers.md
+      # Additional Docker container pages...
+  - Networking:
+      - Overview: networking.md
+  # Additional sections...
+
+theme:
+  name: material
+  logo: path/to/logo.png
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  # Additional Markdown extensions...
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.superfences
+  # More pymdownx extensions...

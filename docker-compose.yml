@@ -1,0 +1,262 @@
+version: '3.8'
+
+services:
+  opensearch-node1: # This is also the hostname of the container within the Docker network (i.e. https://opensearch-node1/)
+    image: opensearchproject/opensearch:latest # Specifying the latest available image - modify if you want a specific version
+    container_name: opensearch-node1
+    environment:
+      - cluster.name=opensearch-cluster # Name the cluster
+      - node.name=opensearch-node1 # Name the node that will run in this container
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2 # Nodes to look for when discovering the cluster
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2 # Nodes eligible to serve as cluster manager
+      - bootstrap.memory_lock=true # Disable JVM heap memory swapping
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # Set min and max JVM heap sizes to at least 50% of system RAM
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}    # Sets the demo admin user password when using demo configuration, required for OpenSearch 2.12 and later
+    ulimits:
+      memlock:
+        soft: -1 # Set memlock to unlimited (no soft or hard limit)
+        hard: -1
+      nofile:
+        soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+        hard: 65536
+    volumes:
+      - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
+    ports:
+      - 9200:9200 # REST API
+      - 9600:9600 # Performance Analyzer
+
+
+  opensearch-node2:
+    image: opensearchproject/opensearch:latest # This should be the same image used for opensearch-node1 to avoid issues
+    container_name: opensearch-node2
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node2
+      - discovery.seed_hosts=opensearch-node1,opensearch-node2
+      - cluster.initial_cluster_manager_nodes=opensearch-node1,opensearch-node2
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data2:/usr/share/opensearch/data
+
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+    container_name: opensearch-dashboards
+    ports:
+      - 5601:5601 # Map host port 5601 to container port 5601
+    expose:
+      - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
+    environment:
+      OPENSEARCH_HOSTS: '["https://opensearch-node1:9200","https://opensearch-node2:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+
+
+  cerebro:
+    image: "lmenezes/cerebro"
+    container_name: cerebro
+    ports:
+      - "8999:9000"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - 1025:1025
+      - 8025:8025
+
+  n8n:
+    image: n8nio/n8n:nightly
+    restart: unless-stopped
+    environment:
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+    ports:
+      - 5678:5678
+    volumes:
+      - ./vol/n8n_storage:/home/node/.n8n
+      - ./mkdocs:/docs
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: minio
+    restart: unless-stopped
+    command: ["minio", "server", "/data", "--console-address", ":9002"]
+    environment:
+      - MINIO_ROOT_USER=miniadmin
+      - MINIO_ROOT_PASSWORD=password
+    ports:
+      - "9100:9002"
+    volumes:
+      - "./vol/miniodata:/data"
+
+  auth:
+    image: nuwcdivnpt/stig-manager-auth
+    ports:
+      - "8888:8080"
+  stigmandb:
+    image: mysql:8.0
+    ports:
+      - "50001:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpw
+      - MYSQL_USER=stigman
+      - MYSQL_PASSWORD=stigman
+      - MYSQL_DATABASE=stigman
+    cap_add:
+      - SYS_NICE  # workaround MySQL logging bug => mbind: Operation not permitted 
+  api:
+    image: nuwcdivnpt/stig-manager:latest
+    environment:
+      - STIGMAN_OIDC_PROVIDER=http://auth:8080/realms/stigman
+      - STIGMAN_CLASSIFICATION=U
+      - STIGMAN_DB_HOST=stigmandb
+      - STIGMAN_DB_PASSWORD=stigman
+      - STIGMAN_INIT_IMPORT_STIGS=true
+      # Change envvar below if non-localhost browsers will access the API
+      - STIGMAN_CLIENT_OIDC_PROVIDER=http://localhost:8080/realms/stigman
+      # Customize the Welcome widget on the Home tab
+      # - STIGMAN_CLIENT_WELCOME_IMAGE=<client-relative-url-to-your-logo>
+      - STIGMAN_CLIENT_WELCOME_TITLE=Deployment Information
+      - STIGMAN_CLIENT_WELCOME_MESSAGE=Your deployment's Support process can be described here. You can provide a link below.
+      - STIGMAN_CLIENT_WELCOME_LINK=http://link_to_help_pages
+    init: true
+    ports:
+      - "54000:54000"
+
+  bento:
+    image: joshuabrown42/bento:latest
+    container_name: bento
+    volumes:
+      - ./bento/config.js:/usr/share/nginx/html/config.js
+    ports:
+      - 80:80
+
+  web:
+      restart: unless-stopped
+      container_name: decider-web
+      env_file: .env
+      depends_on:
+          deciderdb:
+              condition: service_healthy
+      build:
+          context: .
+          dockerfile: ./decider/docker/web/Dockerfile
+      ports:
+          - '${WEB_IP}:${WEB_PORT}:5000'
+      environment:
+          # decider config
+          KIOSK_MODE: 'yes'
+          # db to [connect to, build]
+          DB_HOSTNAME: ${DB_HOSTNAME}
+          DB_PORT: ${DB_PORT}
+          DB_DATABASE: ${DB_DATABASE}
+          # db admin user [for building db]
+          DB_ADMIN_NAME: ${DB_ADMIN_NAME}
+          DB_ADMIN_PASS: ${DB_ADMIN_PASS}
+          # db kiosk user [run app under]
+          DB_KIOSK_NAME: ${DB_KIOSK_NAME}
+          DB_KIOSK_PASS: ${DB_KIOSK_PASS}
+          # app admin [create]
+          APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL}
+          APP_ADMIN_PASS: ${APP_ADMIN_PASS}
+          # cart encryption key
+          CART_ENC_KEY: ${CART_ENC_KEY}
+          # app endpoint [to display to user]
+          WEB_IP: ${WEB_IP}
+          WEB_PORT: ${WEB_PORT}
+      volumes:
+          - type: bind
+            source: ./decider/config
+            target: /opt/decider/ro_config
+            read_only: true
+
+  deciderdb:
+      restart: unless-stopped
+      container_name: deciderdb
+      env_file: .env
+      image: postgres:16-alpine
+      environment:
+          POSTGRES_INITDB_ARGS: '--auth=scram-sha-256'
+          POSTGRES_HOST_AUTH_METHOD: 'scram-sha-256'
+          POSTGRES_USER: ${DB_ADMIN_NAME}
+          PGUSER: ${DB_ADMIN_NAME}
+          POSTGRES_PASSWORD: ${DB_ADMIN_PASS}
+          POSTGRES_DB: ${DB_DATABASE}
+      healthcheck:
+          test: ['CMD-SHELL', 'pg_isready -U ${DB_ADMIN_NAME} -d ${DB_DATABASE}']
+          interval: 4s
+          timeout: 2s
+          retries: 8
+      volumes:
+          - ./vol/deciderdb_data:/var/lib/postgresql/data
+
+  mkdocs:
+    image: squidfunk/mkdocs-material:latest
+    ports:
+      - 8500:8000
+    volumes:
+      - ./mkdocs:/docs
+    stdin_open: true
+    tty: true
+
+  keycloak_web:
+    image: quay.io/keycloak/keycloak:24.0.4
+    container_name: keycloak_web
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloakdb:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+
+      KC_LOG_LEVEL: info
+      KC_METRICS_ENABLED: true
+      KC_HEALTH_ENABLED: true
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev
+    depends_on:
+      - keycloakdb
+    ports:
+      - 8080:8080
+
+  keycloakdb:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+
+
+networks:
+  elk:
+    driver: bridge
+    ipam:
+      config:
+         - subnet: 172.10.0.0/16
+           gateway: 172.10.0.1
+
+volumes:
+  opensearch-data1:
+  opensearch-data2:
+  cortexdata:
+  cortexlogs:
+  cortexjobs:
+  docker-job-directory:
+  deciderdb_data:
+  postgres_data:

@@ -1,0 +1,3 @@
+2024/05/31 16:07:42 [error] 198#198: *32 open() "/var/www/html/users/login" failed (2: No such file or directory), client: 172.21.0.1, server: localhost-nginx-proxy-manager, request: "GET /users/login HTTP/1.1", host: "0.0.0.0"
+2024/05/31 16:07:42 [alert] 198#198: 512 worker_connections are not enough
+2024/05/31 16:07:42 [error] 198#198: *1020 recv() failed (104: Connection reset by peer) while reading response header from upstream, client: 127.0.0.1, server: localhost-nginx-proxy-manager, request: "GET /favicon.ico HTTP/1.1", upstream: "http://127.0.0.1:80/favicon.ico", host: "0.0.0.0", referrer: "http://0.0.0.0/users/login"
